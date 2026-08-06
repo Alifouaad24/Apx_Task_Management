@@ -415,10 +415,8 @@ class TaskListController extends GetxController {
     },
     (updatedTask) async {
       if (updatedTask.status != previousStatus) {
-        // إعادة جلب التاسكات لهذا التاب بدل الحذف المحلي، لضمان اختفاء
-        // التاسك التي تغيّرت حالتها والتزامن مع السيرفر
         await loadFirstPage();
-        Get.back(); // ⚠️ استبدلها باسم دالة الجلب الفعلية عندك إن كانت مختلفة
+        Get.back();
       } else {
         upsertTask(updatedTask);
       }
