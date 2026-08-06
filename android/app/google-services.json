@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "199740475189",
+    "project_id": "apx-task-management",
+    "storage_bucket": "apx-task-management.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:199740475189:android:2fe7b320d549087a0eee7c",
+        "android_client_info": {
+          "package_name": "com.example.apx_task_management"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDlD4f1MpiEB22Mk0kZ4Se6WSs3v58Ehwk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
