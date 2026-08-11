@@ -92,13 +92,6 @@ class NotificationService extends GetxService {
     _messaging = FirebaseMessaging.instance;
 
     await _requestPermission();
-
-    final apnsToken = await _messaging!.getAPNSToken();
-    final fcmToken = await _messaging!.getToken();
-
-    AppLogger.i('🍎 APNS TOKEN: $apnsToken');
-    AppLogger.i('🔥 FCM TOKEN: $fcmToken');
-
     await _wireListeners();
     await _captureInitialMessage();
 
@@ -112,9 +105,8 @@ class NotificationService extends GetxService {
   // Local notifications
   // ---------------------------------------------------------------------------
   Future<void> _initLocalNotifications() async {
-    const androidSettings = AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
-    );
+    const androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
 
     const darwinSettings = DarwinInitializationSettings(
       requestAlertPermission: false, // requested explicitly via FCM below
@@ -137,18 +129,14 @@ class NotificationService extends GetxService {
   Future<void> _createChannels() async {
     if (!Platform.isAndroid) return;
 
-    final android = _local
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
+    final android = _local.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
     if (android == null) return;
 
     for (final channel in NotificationChannels.all) {
       await android.createNotificationChannel(channel);
     }
-    AppLogger.i(
-      '${NotificationChannels.all.length} notification channels ready',
-    );
+    AppLogger.i('${NotificationChannels.all.length} notification channels ready');
   }
 
   // ---------------------------------------------------------------------------
@@ -165,14 +153,13 @@ class NotificationService extends GetxService {
 
       final granted =
           settings.authorizationStatus == AuthorizationStatus.authorized ||
-          settings.authorizationStatus == AuthorizationStatus.provisional;
+              settings.authorizationStatus == AuthorizationStatus.provisional;
 
       // Android 13+ needs the runtime POST_NOTIFICATIONS grant as well.
       if (Platform.isAndroid) {
         await _local
             .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin
-            >()
+                AndroidFlutterLocalNotificationsPlugin>()
             ?.requestNotificationsPermission();
       }
 
@@ -241,18 +228,48 @@ class NotificationService extends GetxService {
   /// Fetches the FCM token and pushes it to the backend.
   /// Call right after a successful login, once the token can be attributed.
   Future<String?> registerDevice() async {
-    if (_messaging == null) return null;
-    try {
-      final token = await _messaging!.getToken();
-      AppLogger.i('🔥 FCM TOKEN: $token');
-      if (token == null) return null;
-      await registerToken(token);
-      return token;
-    } catch (e, s) {
-      AppLogger.w('Could not obtain FCM token', e, s);
+  if (_messaging == null) return null;
+
+  try {
+    // iOS: انتظر APNs token قبل طلب FCM token
+    if (Platform.isIOS) {
+      String? apnsToken;
+
+      for (int i = 0; i < 10; i++) {
+        apnsToken = await _messaging!.getAPNSToken();
+
+        if (apnsToken != null) {
+          AppLogger.i('APNs token received');
+          break;
+        }
+
+        AppLogger.w('Waiting for APNs token... ${i + 1}/10');
+        await Future.delayed(const Duration(seconds: 1));
+      }
+
+      if (apnsToken == null) {
+        AppLogger.w('APNs token is still null');
+        return null;
+      }
+    }
+
+    final token = await _messaging!.getToken();
+
+    if (token == null) {
+      AppLogger.w('FCM token is null');
       return null;
     }
+
+    AppLogger.i('FCM token: $token');
+
+    await registerToken(token);
+
+    return token;
+  } catch (e, s) {
+    AppLogger.w('Could not obtain FCM token', e, s);
+    return null;
   }
+}
 
   /// Sends [token] to the backend, skipping the call when nothing changed.
   Future<void> registerToken(String token) async {
@@ -265,7 +282,10 @@ class NotificationService extends GetxService {
     try {
       await Get.find<ApiClient>().post(
         ApiConstants.registerDevice,
-        data: {'token': token, 'userId': userId},
+        data: {
+          'token': token,
+          'userId': userId,
+        },
       );
       await _storage.setString(StorageKeys.fcmToken, token);
       AppLogger.i('FCM token registered with backend');
@@ -289,10 +309,10 @@ class NotificationService extends GetxService {
   // Message handling
   // ---------------------------------------------------------------------------
   PushPayload _toPayload(RemoteMessage message) => PushPayload.fromData(
-    message.data,
-    fallbackTitle: message.notification?.title,
-    fallbackBody: message.notification?.body,
-  );
+        message.data,
+        fallbackTitle: message.notification?.title,
+        fallbackBody: message.notification?.body,
+      );
 
   Future<void> _onForegroundMessage(RemoteMessage message) async {
     final payload = _toPayload(message);
@@ -408,13 +428,13 @@ class NotificationService extends GetxService {
   /// Debug helper: renders a notification locally without a server round trip.
   @visibleForTesting
   Future<void> debugShow(PushType type, {String? taskId}) => show(
-    PushPayload(
-      type: type,
-      taskId: taskId,
-      title: 'Test notification',
-      body: 'Rendered locally for ${type.value}',
-    ),
-  );
+        PushPayload(
+          type: type,
+          taskId: taskId,
+          title: 'Test notification',
+          body: 'Rendered locally for ${type.value}',
+        ),
+      );
 
   @override
   void onClose() {
