@@ -2,7 +2,7 @@ name: apx_task_management
 description: "APX Task Management — Clean Architecture Flutter app (GetX + Dio + Dartz)."
 publish_to: 'none'
 
-version: 1.0.0+2
+version: 1.0.0+3
 
 environment:
   sdk: ^3.8.1
