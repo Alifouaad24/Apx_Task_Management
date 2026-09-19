@@ -5,19 +5,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
-import 'core/bindings/initial_binding.dart';
-import 'core/constants/app_constants.dart';
-import 'core/network/api_client.dart';
-import 'core/network/network_info.dart';
-import 'core/notifications/notification_service.dart';
-import 'core/routes/app_pages.dart';
-import 'core/services/analytics_service.dart';
-import 'core/services/logger_service.dart';
-import 'core/services/session_manager.dart';
-import 'core/services/theme_service.dart';
-import 'core/storage/storage_service.dart';
-import 'core/theme/app_theme.dart';
-import 'firebase_options.dart';
+import 'package:apx_task_management/core/api_client.dart';
+import 'package:apx_task_management/core/constants.dart';
+import 'package:apx_task_management/core/notifications.dart';
+import 'package:apx_task_management/core/routes.dart';
+import 'package:apx_task_management/core/services.dart';
+import 'package:apx_task_management/core/storage.dart';
+import 'package:apx_task_management/core/theme.dart';
+import 'package:apx_task_management/firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -57,30 +52,16 @@ Future<bool> _initFirebase() async {
 }
 
 Future<void> _initServices({required bool firebaseAvailable}) async {
-  final storage = await Get.putAsync<StorageService>(
-    StorageService.init,
-    permanent: true,
-  );
+  final storage = Get.put(await AppStorage.init(), permanent: true);
+  Get.put(ApiClient(storage), permanent: true);
+  Get.put(ThemeService(storage), permanent: true);
 
-  final session = Get.put<SessionManager>(
-    SessionManager(storage),
-    permanent: true,
-  );
-  Get.put<ThemeService>(ThemeService(storage), permanent: true);
-
-  Get.put<NetworkInfo>(NetworkInfoImpl(), permanent: true);
-  Get.put<ApiClient>(ApiClient(session: session), permanent: true);
-
-  await Get.putAsync<AnalyticsService>(
+  await Get.putAsync(
     () => AnalyticsService().init(available: firebaseAvailable),
     permanent: true,
   );
-
-  await Get.putAsync<NotificationService>(
-    () => NotificationService(
-      storage,
-      session,
-    ).init(firebaseAvailable: firebaseAvailable),
+  await Get.putAsync(
+    () => NotificationService(storage).init(firebaseAvailable: firebaseAvailable),
     permanent: true,
   );
 
@@ -92,7 +73,6 @@ class ApxTaskApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeService = Get.find<ThemeService>();
     final analytics = Get.find<AnalyticsService>();
 
     return ScreenUtilInit(
@@ -100,13 +80,13 @@ class ApxTaskApp extends StatelessWidget {
       minTextAdapt: true,
       splitScreenMode: true,
       builder: (context, child) {
-        return Obx(
-          () => GetMaterialApp(
+        return GetBuilder<ThemeService>(
+          builder: (themeService) => GetMaterialApp(
             title: AppConfig.appName,
             debugShowCheckedModeBanner: false,
             theme: AppTheme.light,
             darkTheme: AppTheme.dark,
-            themeMode: themeService.themeMode.value,
+            themeMode: themeService.themeMode,
             initialRoute: AppPages.initial,
             getPages: AppPages.routes,
             initialBinding: InitialBinding(),
