@@ -1,6 +1,5 @@
-import 'package:apx_task_management/core/utils/paginated.dart';
-import 'package:apx_task_management/features/tasks/domain/entities/task_priority.dart';
-import 'package:apx_task_management/features/tasks/domain/entities/task_status.dart';
+import 'package:apx_task_management/core/utils.dart';
+import 'package:apx_task_management/features/tasks/task_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Unit tests for the pure domain rules — the parts worth pinning down because

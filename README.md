@@ -44,31 +44,47 @@ Other build-time flags: `ENABLE_NETWORK_LOGS`, `ENABLE_ANALYTICS`.
 
 ```
 lib/
-├── core/                          # Cross-cutting, feature-agnostic
-│   ├── bindings/                  # InitialBinding (shared auth graph)
-│   ├── constants/                 # AppConfig, ApiConstants, StorageKeys, AppStrings
-│   ├── errors/                    # Exceptions, Failures, ErrorHandler
-│   ├── network/                   # ApiClient, interceptors, NetworkInfo, mock API
-│   ├── notifications/             # FCM + local notifications, channels, payloads
-│   ├── routes/                    # AppRoutes, AppPages
-│   ├── services/                  # SessionManager, Theme, Analytics, Logger
-│   ├── storage/                   # StorageService, TokenStorage
-│   ├── theme/                     # AppTheme, AppColors, AppTextStyles
-│   ├── usecases/                  # UseCase contract
-│   ├── utils/                     # Formatters, validators, JWT, extensions, UI helpers
-│   └── widgets/                   # AppButton, AppTextField, AppLoader, StatusChip…
+├── core/                        # Cross-cutting, feature-agnostic
+│   ├── constants.dart           # AppConfig, ApiConstants, AppStrings, StorageKeys, AppRoutes
+│   ├── errors.dart              # Exceptions, Failures, ErrorHandler
+│   ├── network.dart             # ApiClient, interceptors, NetworkInfo, RepositoryMixin
+│   ├── mock_interceptor.dart    # In-memory demo API
+│   ├── notifications.dart       # FCM + local notifications, channels, payloads
+│   ├── routes.dart              # AppPages, InitialBinding
+│   ├── services.dart            # Storage, TokenStorage, Session, Theme, Analytics, Logger
+│   ├── theme.dart               # AppTheme, AppColors, AppTextStyles
+│   ├── utils.dart               # UseCase contract, Paginated, formatters, validators, extensions
+│   └── widgets.dart             # AppButton, AppTextField, AppLoader, StatusChip, UserAvatar…
 │
 ├── features/
-│   ├── splash/                    # domain + presentation
-│   ├── auth/                      # data + domain + presentation
-│   ├── tasks/                     # data + domain + presentation
-│   ├── task_details/              # data + domain + presentation
-│   ├── comments/                  # data + domain + presentation
-│   └── profile/                   # data + domain + presentation
+│   ├── splash/
+│   │   └── splash.dart                 # use case + controller + binding + page
+│   ├── auth/
+│   │   ├── auth_models.dart            # entities + DTOs (+ .g.dart)
+│   │   ├── auth_repository.dart        # contract + data sources + implementation
+│   │   ├── auth_usecases.dart
+│   │   ├── auth_controller.dart        # controller + binding
+│   │   └── login_page.dart
+│   ├── profile/                        # same five files, profile_*
+│   └── tasks/
+│       ├── task_models.dart            # TaskStatus, TaskPriority, entities, DTOs (+ .g.dart)
+│       ├── task_repository.dart        # contract + remote data source + implementation
+│       ├── task_usecases.dart
+│       ├── task_controllers.dart       # HomeController, TaskListController, HomeBinding
+│       ├── home_page.dart
+│       ├── create_task_page.dart
+│       ├── task_details_page.dart
+│       ├── task_list_widgets.dart      # TaskCard, TaskListView
+│       ├── task_detail_widgets.dart    # TaskInfoSection, StatusSelector, AttachmentList
+│       └── comment_widgets.dart        # CommentBubble, CommentInput, CommentsTimeline
 │
 ├── firebase_options.dart
 └── main.dart
 ```
+
+One file per layer per feature: models, repository, use cases, controllers,
+then the screens. Inside each file the original sections are marked with a
+banner comment, so the pieces stay easy to find without a folder per class.
 
 ### The dependency rule
 
@@ -80,18 +96,20 @@ presentation  →  domain  ←  data
                   use cases)
 ```
 
-`domain` imports nothing from `data` or Flutter. Data sources throw
-`AppException`s; repositories convert them to `Failure`s via `ErrorHandler`, so
-**every repository method returns `Future<Either<Failure, T>>`** and no exception
-ever reaches a controller.
+The layering is a convention inside each file rather than a folder boundary:
+`*_models.dart` holds entities alongside their DTOs, and `*_repository.dart`
+holds the abstract contract alongside the data sources and implementation that
+satisfy it. Data sources throw `AppException`s; repositories convert them to
+`Failure`s via `ErrorHandler`, so **every repository method returns
+`Future<Either<Failure, T>>`** and no exception ever reaches a controller.
 
 ### Two documented deviations
 
-1. **`UserEntity` is a shared kernel.** It lives in `features/auth/domain` and is
-   reused by tasks (assignee/reporter) and comments (author). Duplicating it per
-   feature would mean converting between identical shapes at every boundary.
-2. **`splash` has no `data` layer.** It orchestrates the auth domain and owns no
-   data of its own; an empty folder for symmetry would be cargo cult.
+1. **`UserEntity` is a shared kernel.** It lives in `features/auth/auth_models.dart`
+   and is reused by tasks (assignee/reporter) and comments (author). Duplicating
+   it per feature would mean converting between identical shapes at every boundary.
+2. **`splash` has no data layer.** It orchestrates the auth domain and owns no
+   data of its own, so the whole feature is a single file.
 
 ### Models are DTOs, not entities
 

@@ -5,19 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 
-import 'core/bindings/initial_binding.dart';
-import 'core/constants/app_constants.dart';
-import 'core/network/api_client.dart';
-import 'core/network/network_info.dart';
-import 'core/notifications/notification_service.dart';
-import 'core/routes/app_pages.dart';
-import 'core/services/analytics_service.dart';
-import 'core/services/logger_service.dart';
-import 'core/services/session_manager.dart';
-import 'core/services/theme_service.dart';
-import 'core/storage/storage_service.dart';
-import 'core/theme/app_theme.dart';
-import 'firebase_options.dart';
+import 'package:apx_task_management/core/constants.dart';
+import 'package:apx_task_management/core/network.dart';
+import 'package:apx_task_management/core/notifications.dart';
+import 'package:apx_task_management/core/routes.dart';
+import 'package:apx_task_management/core/services.dart';
+import 'package:apx_task_management/core/theme.dart';
+import 'package:apx_task_management/firebase_options.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
