@@ -1,7 +1,3 @@
-import 'dart:convert';
-
-import 'package:dartz/dartz.dart';
-import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -10,90 +6,6 @@ import 'package:intl/intl.dart';
 import 'package:apx_task_management/core/constants.dart';
 import 'package:apx_task_management/core/errors.dart';
 import 'package:apx_task_management/core/theme.dart';
-
-// --------------------------------------------------------------------------
-// Usecase
-// --------------------------------------------------------------------------
-
-/// Contract for every use case in the app.
-///
-/// Keeping the signature uniform means controllers always call
-/// `await useCase(params)` and always fold an `Either`.
-abstract class UseCase<Type, Params> {
-  Future<Either<Failure, Type>> call(Params params);
-}
-
-/// Synchronous variant for use cases that only read local state.
-abstract class SyncUseCase<Type, Params> {
-  Either<Failure, Type> call(Params params);
-}
-
-/// Placeholder for use cases that take no arguments.
-class NoParams extends Equatable {
-  const NoParams();
-
-  @override
-  List<Object?> get props => [];
-}
-
-// --------------------------------------------------------------------------
-// Paginated
-// --------------------------------------------------------------------------
-
-/// Layer-neutral pagination envelope used by repositories, use cases and
-/// controllers alike. It carries no transport details, so the domain layer can
-/// depend on it safely.
-class Paginated<T> extends Equatable {
-  const Paginated({
-    required this.items,
-    required this.page,
-    required this.limit,
-    required this.total,
-    required this.totalPages,
-  });
-
-  /// Convenience constructor for a single, complete page.
-  factory Paginated.single(List<T> items) => Paginated<T>(
-        items: items,
-        page: 1,
-        limit: items.length,
-        total: items.length,
-        totalPages: 1,
-      );
-
-  factory Paginated.empty() => Paginated<T>(
-        items: const [],
-        page: 1,
-        limit: 0,
-        total: 0,
-        totalPages: 0,
-      );
-
-  final List<T> items;
-  final int page;
-  final int limit;
-  final int total;
-  final int totalPages;
-
-  /// `true` when another page can be requested.
-  bool get hasMore => page < totalPages;
-
-  int get nextPage => page + 1;
-
-  bool get isEmpty => items.isEmpty;
-
-  /// Maps the payload while keeping the pagination metadata intact.
-  Paginated<R> map<R>(R Function(T item) transform) => Paginated<R>(
-        items: items.map(transform).toList(growable: false),
-        page: page,
-        limit: limit,
-        total: total,
-        totalPages: totalPages,
-      );
-
-  @override
-  List<Object?> get props => [items, page, limit, total, totalPages];
-}
 
 // --------------------------------------------------------------------------
 // Date formatter
@@ -230,60 +142,6 @@ class Validators {
       if (error != null) return error;
     }
     return null;
-  }
-}
-
-// --------------------------------------------------------------------------
-// Jwt decoder
-// --------------------------------------------------------------------------
-
-/// Minimal, dependency-free JWT reader.
-///
-/// Only the payload is inspected — signature verification is the server's job.
-/// Used by the [SessionManager] to decide whether a stored token is still
-/// usable before the app ever hits the network.
-class JwtDecoder {
-  const JwtDecoder._();
-
-  /// Decodes the payload segment, or returns `null` when the token is not a
-  /// well-formed JWT (opaque tokens are perfectly valid, they just cannot be
-  /// introspected locally).
-  static Map<String, dynamic>? decode(String? token) {
-    if (token == null || token.isEmpty) return null;
-
-    final parts = token.split('.');
-    if (parts.length != 3) return null;
-
-    try {
-      final normalized = base64Url.normalize(parts[1]);
-      final decoded = utf8.decode(base64Url.decode(normalized));
-      final payload = jsonDecode(decoded);
-      return payload is Map<String, dynamic> ? payload : null;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// Reads the `exp` claim (seconds since epoch) as a [DateTime].
-  static DateTime? expiryOf(String? token) {
-    final exp = decode(token)?['exp'];
-    if (exp is! num) return null;
-    return DateTime.fromMillisecondsSinceEpoch(exp.toInt() * 1000, isUtc: true)
-        .toLocal();
-  }
-
-  /// `true` only when the token is a JWT **and** its `exp` has passed.
-  /// Unknown/opaque tokens return `false` — the server stays the authority.
-  static bool isExpired(String? token, {Duration leeway = Duration.zero}) {
-    final expiry = expiryOf(token);
-    if (expiry == null) return false;
-    return DateTime.now().add(leeway).isAfter(expiry);
-  }
-
-  /// Reads the subject (user id) claim when present.
-  static String? subjectOf(String? token) {
-    final sub = decode(token)?['sub'];
-    return sub?.toString();
   }
 }
 

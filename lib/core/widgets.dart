@@ -503,8 +503,6 @@ class AppErrorWidget extends StatelessWidget {
       NetworkFailure() => Icons.wifi_off_rounded,
       TimeoutFailure() => Icons.timer_off_outlined,
       UnauthorizedFailure() => Icons.lock_outline_rounded,
-      ForbiddenFailure() => Icons.block_outlined,
-      NotFoundFailure() => Icons.search_off_rounded,
       ServerFailure() => Icons.cloud_off_rounded,
       _ => Icons.error_outline_rounded,
     };
@@ -515,8 +513,6 @@ class AppErrorWidget extends StatelessWidget {
       NetworkFailure() => 'You are offline',
       TimeoutFailure() => 'This is taking too long',
       UnauthorizedFailure() => 'Session expired',
-      ForbiddenFailure() => 'Not allowed',
-      NotFoundFailure() => 'Nothing here',
       ServerFailure() => 'Server problem',
       _ => AppStrings.somethingWentWrong,
     };

@@ -102,14 +102,10 @@ class MockInterceptor extends Interceptor {
     if (method == 'POST' && path == ApiConstants.login) {
       return _db.login(body);
     }
-    if (method == 'POST' && path == ApiConstants.refreshToken) {
-      return _db.refresh(body);
-    }
     if (method == 'POST' && path == ApiConstants.logout) {
       return _MockResult(200, {'message': 'Signed out'});
     }
-    if (method == 'GET' &&
-        (path == ApiConstants.currentUser || path == ApiConstants.profile)) {
+    if (method == 'GET' && path == ApiConstants.profile) {
       return _MockResult(200, {'data': _db.currentUser});
     }
     if (method == 'PATCH' && path == ApiConstants.profile) {
@@ -366,22 +362,7 @@ class _MockDatabase {
     return _MockResult(200, {
       'data': {
         'token': _fakeJwt(currentUser['id'].toString()),
-        'refreshToken': 'mock-refresh-${currentUser['id']}',
-        'expiresIn': 60 * 60 * 8, // 8 hours
         'user': currentUser,
-      },
-    });
-  }
-
-  _MockResult refresh(Map<String, dynamic> body) {
-    if ((body['refreshToken'] ?? '').toString().isEmpty) {
-      throw const _MockHttpError(401, 'Missing refresh token.');
-    }
-    return _MockResult(200, {
-      'data': {
-        'token': _fakeJwt(currentUser['id'].toString()),
-        'refreshToken': 'mock-refresh-${currentUser['id']}',
-        'expiresIn': 60 * 60 * 8,
       },
     });
   }
@@ -393,8 +374,7 @@ class _MockDatabase {
     return _MockResult(200, {'data': currentUser});
   }
 
-  /// Builds a structurally valid (unsigned) JWT so [JwtDecoder] has something
-  /// realistic to read an `exp` claim from.
+  /// Builds a structurally valid (unsigned) JWT so the token looks real.
   String _fakeJwt(String subject) {
     String encode(Map<String, dynamic> map) {
       final json = map.entries

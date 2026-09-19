@@ -39,10 +39,6 @@ class AppConfig {
   /// Default page size used by every paginated list in the app.
   static const int defaultPageSize = 20;
 
-  /// How long before the real expiry a token is already treated as expired.
-  /// Prevents firing a request with a token that dies mid-flight.
-  static const Duration tokenExpiryLeeway = Duration(seconds: 30);
-
   /// Debounce applied to search / rapid user input.
   static const Duration inputDebounce = Duration(milliseconds: 400);
 
@@ -82,23 +78,13 @@ class ApiConstants {
   static const Duration sendTimeout = Duration(seconds: 20);
 
   // ---------------------------------------------------------------------------
-  // Headers
-  // ---------------------------------------------------------------------------
-  static const String authorizationHeader = 'Authorization';
-  static const String bearerPrefix = 'Bearer';
-  static const String acceptHeader = 'Accept';
-  static const String contentTypeHeader = 'Content-Type';
-  static const String languageHeader = 'Accept-Language';
-  static const String jsonContentType = 'application/json';
-
-  // ---------------------------------------------------------------------------
-  // Auth — POST /auth/login {email, password}
-  //        -> {token, refreshToken, expiresIn, user}
+  // Auth — POST {email, password} -> {token, user}
   // ---------------------------------------------------------------------------
   static const String login = '/Account/Login';
+
+  /// GET -> {businesses: [...]}. Used when no businesses are stored locally.
+  static const String myData = '/Account/GetMyData';
   static const String logout = '/auth/logout';
-  static const String refreshToken = '/auth/refresh';
-  static const String currentUser = '/auth/me';
 
   // ---------------------------------------------------------------------------
   // Tasks — GET /tasks?status=&page=&limit= -> {data: [], meta: {}}
@@ -110,6 +96,43 @@ class ApiConstants {
 
   /// PATCH /tasks/{id}/status {status}
   static String taskStatus(String id) => '/tasks/$id/status';
+
+  // ---------------------------------------------------------------------------
+  // Orders (the task board)
+  // ---------------------------------------------------------------------------
+
+  /// Used when the signed-in user carries no service id.
+  static const int defaultServiceId = 20;
+
+  /// GET -> [{orderStatusId, statusEn, statusAr, service_id}]
+  static String orderStatuses(int serviceId) =>
+      '/UniversalOrder/GetAllOrderStatusByService/$serviceId';
+
+  /// GET -> [GlobalOrder]
+  static String orders(int businessId, int serviceId) =>
+      '/Orders/$businessId/$serviceId';
+
+  /// POST body: see `NewTaskData`.
+  static const String addOrder = '/Orders/AddGlobalOrder';
+
+  /// PUT {notes, statusId}
+  static String updateOrder(int id) => '/Orders/UpdateETaskOrder/$id';
+  static String deleteOrder(int id) => '/Orders/$id';
+  static String closeOrder(int id) => '/Orders/SetTaskStatusClosed/$id';
+  static String completeOrder(int id) => '/Orders/SetStatusCompleted/$id';
+
+  /// PUT {comment}
+  static String addOrderComment(int id) => '/Orders/AddComment/$id';
+  static String markOrderCommentsRead(int id) =>
+      '/Orders/makeAllCommentsRead/$id';
+
+  // Lookups for the create form.
+  static const String assignTypes = '/Orders/GetAllAssignTypes';
+  static String businessesForTask(int businessId) =>
+      '/Business/GetAllBusinessForTask/$businessId';
+  static String customers(int businessId) => '/Customers/$businessId';
+  static const String globalSystems = '/GlobalSystem';
+  static String users(int businessId) => '/Account/getAllUsers/$businessId';
 
   // ---------------------------------------------------------------------------
   // Comments — GET/POST /tasks/{taskId}/comments
@@ -220,45 +243,6 @@ class AppStrings {
   static const String newTaskNotifications = 'New tasks';
   static const String about = 'About';
   static const String version = 'Version';
-}
-
-// --------------------------------------------------------------------------
-// Storage keys
-// --------------------------------------------------------------------------
-
-/// Single source of truth for every SharedPreferences key.
-///
-/// Keys are namespaced with the app prefix so a shared preference store (e.g.
-/// on iOS app groups) never collides with another module's keys.
-class StorageKeys {
-  const StorageKeys._();
-
-  static const String _prefix = 'apx_';
-
-  /// JWT access token.
-  static const String accessToken = '${_prefix}access_token';
-
-  /// Long-lived refresh token used by the [AuthInterceptor].
-  static const String refreshToken = '${_prefix}refresh_token';
-
-  /// Millisecond epoch at which [accessToken] stops being valid.
-  static const String tokenExpiry = '${_prefix}token_expiry';
-
-  /// The signed-in user serialized as a JSON string.
-  static const String userData = '${_prefix}user_data';
-
-  /// `light` | `dark` | `system`.
-  static const String themeMode = '${_prefix}theme_mode';
-
-  /// Notification preferences serialized as a JSON string.
-  static const String notificationSettings = '${_prefix}notification_settings';
-
-  /// Last FCM token that was successfully registered with the backend.
-  static const String fcmToken = '${_prefix}fcm_token';
-  static const String userId = '${_prefix}user_id';
-
-  /// `true` once the user has completed the first launch flow.
-  static const String onboardingSeen = '${_prefix}onboarding_seen';
 }
 
 // --------------------------------------------------------------------------

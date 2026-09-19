@@ -1,19 +1,22 @@
 import 'package:get/get.dart';
 
+import 'package:apx_task_management/core/api_client.dart';
 import 'package:apx_task_management/core/constants.dart';
-import 'package:apx_task_management/core/network.dart';
-import 'package:apx_task_management/core/services.dart';
-import 'package:apx_task_management/features/auth/auth_controller.dart';
-import 'package:apx_task_management/features/auth/auth_repository.dart';
-import 'package:apx_task_management/features/auth/auth_usecases.dart';
-import 'package:apx_task_management/features/auth/login_page.dart';
-import 'package:apx_task_management/features/profile/profile_controller.dart';
-import 'package:apx_task_management/features/profile/profile_page.dart';
-import 'package:apx_task_management/features/splash/splash.dart';
-import 'package:apx_task_management/features/tasks/create_task_page.dart';
-import 'package:apx_task_management/features/tasks/home_page.dart';
-import 'package:apx_task_management/features/tasks/task_controllers.dart';
-import 'package:apx_task_management/features/tasks/task_details_page.dart';
+import 'package:apx_task_management/core/storage.dart';
+import 'package:apx_task_management/features/auth/controllers/auth_controller.dart';
+import 'package:apx_task_management/features/auth/datasources/auth_datasource.dart';
+import 'package:apx_task_management/features/auth/repositories/auth_repository.dart';
+import 'package:apx_task_management/features/auth/usecases/auth_usecases.dart';
+import 'package:apx_task_management/features/auth/views/login_page.dart';
+import 'package:apx_task_management/features/profile/controllers/profile_controller.dart';
+import 'package:apx_task_management/features/profile/views/profile_page.dart';
+import 'package:apx_task_management/features/splash/controllers/splash_controller.dart';
+import 'package:apx_task_management/features/splash/views/splash_page.dart';
+import 'package:apx_task_management/features/tasks/controllers/home_controller.dart';
+import 'package:apx_task_management/features/tasks/controllers/task_form_controller.dart';
+import 'package:apx_task_management/features/tasks/views/create_task_page.dart';
+import 'package:apx_task_management/features/tasks/views/home_page.dart';
+import 'package:apx_task_management/features/tasks/views/task_details_page.dart';
 
 // --------------------------------------------------------------------------
 // App pages
@@ -24,7 +27,7 @@ class AppPages {
 
   static const String initial = AppRoutes.splash;
   static const Transition _defaultTransition = Transition.cupertino;
-  
+
   static final List<GetPage<dynamic>> routes = [
     GetPage(
       name: AppRoutes.splash,
@@ -36,7 +39,6 @@ class AppPages {
     GetPage(
       name: AppRoutes.login,
       page: () => const LoginPage(),
-      binding: AuthBinding(),
       transition: Transition.fadeIn,
       transitionDuration: const Duration(milliseconds: 250),
     ),
@@ -50,15 +52,17 @@ class AppPages {
     GetPage(
       name: AppRoutes.taskDetails,
       page: () => const TaskDetailsPage(),
-      // binding: HomeBinding(),
+      // Registers the board when the page is opened from a notification
+      // before the dashboard; a no-op when the dashboard already did.
+      binding: HomeBinding(),
       transition: _defaultTransition,
-    ), 
+    ),
     GetPage(
       name: AppRoutes.addUpdateTask,
       page: () => const CreateTaskPage(),
-      // binding: HomeBinding(),
+      binding: TaskFormBinding(),
       transition: _defaultTransition,
-    ), 
+    ),
     GetPage(
       name: AppRoutes.profile,
       page: () => const ProfilePage(),
@@ -72,55 +76,45 @@ class AppPages {
 // Initial binding
 // --------------------------------------------------------------------------
 
-/// App-wide dependency graph, attached to `GetMaterialApp.initialBinding`.
+/// The auth stack, shared by splash, login, profile and tasks.
 ///
-/// Long-lived *services* (storage, session, network, notifications, analytics,
-/// theme) are bootstrapped in `main()` because they need to be awaited before
-/// the first frame. This binding registers the shared **auth** stack, which
-/// splash, login and profile all depend on — registering it once here avoids
-/// three bindings racing to create the same repository.
-///
-/// Everything is `lazyPut`: nothing is constructed until something asks for it.
+/// `fenix` recreates an instance if GetX disposed it with a route (e.g. the
+/// login screen), so it is always there after a logout.
 class InitialBinding extends Bindings {
   @override
   void dependencies() {
-    // ---- Auth: data ---------------------------------------------------------
-    Get.lazyPut<AuthRemoteDataSource>(
-      () => AuthRemoteDataSourceImpl(Get.find<ApiClient>()),
+    Get.lazyPut(() => AuthDatasource(Get.find<ApiClient>()), fenix: true);
+    Get.lazyPut(
+      () => AuthRepository(Get.find<AuthDatasource>(), Get.find<AppStorage>()),
       fenix: true,
     );
-
-    Get.lazyPut<AuthLocalDataSource>(
-      () => AuthLocalDataSourceImpl(Get.find<SessionManager>()),
+    Get.lazyPut(() => LoginUseCase(Get.find<AuthRepository>()), fenix: true);
+    Get.lazyPut(() => LogoutUseCase(Get.find<AuthRepository>()), fenix: true);
+    Get.lazyPut(
+      () => IsLoggedInUseCase(Get.find<AuthRepository>()),
       fenix: true,
     );
-
-    Get.lazyPut<AuthRepository>(
-      () => AuthRepositoryImpl(
-        remote: Get.find<AuthRemoteDataSource>(),
-        local: Get.find<AuthLocalDataSource>(),
-        networkInfo: Get.find<NetworkInfo>(),
+    Get.lazyPut(
+      () => GetCurrentUserUseCase(Get.find<AuthRepository>()),
+      fenix: true,
+    );
+    Get.lazyPut(
+      () => LoadBusinessesUseCase(Get.find<AuthRepository>()),
+      fenix: true,
+    );
+    Get.lazyPut(
+      () => GetCurrentBusinessUseCase(Get.find<AuthRepository>()),
+      fenix: true,
+    );
+    Get.lazyPut(
+      () => SelectBusinessUseCase(Get.find<AuthRepository>()),
+      fenix: true,
+    );
+    Get.lazyPut(
+      () => AuthController(
+        loginUseCase: Get.find<LoginUseCase>(),
+        logoutUseCase: Get.find<LogoutUseCase>(),
       ),
-      fenix: true,
-    );
-
-    // ---- Auth: domain -------------------------------------------------------
-    // `fenix` rebuilds these if GetX ever disposes them with a route, which
-    // matters because the session flow can run again after a forced logout.
-    Get.lazyPut<LoginUseCase>(
-      () => LoginUseCase(Get.find<AuthRepository>()),
-      fenix: true,
-    );
-    Get.lazyPut<LogoutUseCase>(
-      () => LogoutUseCase(Get.find<AuthRepository>()),
-      fenix: true,
-    );
-    Get.lazyPut<GetCachedUserUseCase>(
-      () => GetCachedUserUseCase(Get.find<AuthRepository>()),
-      fenix: true,
-    );
-    Get.lazyPut<CheckSessionUseCase>(
-      () => CheckSessionUseCase(Get.find<AuthRepository>()),
       fenix: true,
     );
   }

@@ -1,111 +1,119 @@
-import 'package:apx_task_management/core/utils.dart';
-import 'package:apx_task_management/features/tasks/task_models.dart';
+import 'package:apx_task_management/features/tasks/models/task_model.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Unit tests for the pure domain rules — the parts worth pinning down because
-/// the rest of the app trusts them (the workflow table in particular).
+/// Unit tests for the task models — the parts worth pinning down because the
+/// rest of the app trusts them to survive whatever the API sends.
 void main() {
-  group('TaskStatus', () {
-    test('parses API values and falls back safely', () {
-      expect(TaskStatus.fromApi('in_progress'), TaskStatus.inProgress);
-      expect(TaskStatus.fromApi('READY_FOR_TESTING'), TaskStatus.readyfortesting);
-      expect(TaskStatus.fromApi('ready-for-testing'), TaskStatus.readyfortesting);
-      expect(TaskStatus.fromApi('nonsense'), TaskStatus.newTask);
-      expect(TaskStatus.fromApi(null), TaskStatus.newTask);
+  group('OrderStatusModel', () {
+    final statuses = OrderStatusModel.listFrom([
+      {
+        'orderStatusId': 11,
+        'business': null,
+        'business_id': null,
+        'service': null,
+        'service_id': 20,
+        'statusAr': 'جديد',
+        'statusEn': 'New',
+      },
+      {'orderStatusId': 12, 'service_id': 20, 'statusEn': 'On progress'},
+      {'orderStatusId': 13, 'service_id': 20, 'statusEn': 'Completed'},
+      {'orderStatusId': 14, 'service_id': 20, 'statusEn': 'Closed'},
+      {'orderStatusId': 15, 'service_id': 20, 'statusEn': 'Waiting response'},
+      {'orderStatusId': 16, 'service_id': 20, 'statusEn': 'Testing'},
+      {'statusEn': 'no id — skipped'},
+    ]);
+
+    test('parses the service response in order, skipping bad rows', () {
+      expect(statuses.map((s) => s.id), [11, 12, 13, 14, 15, 16]);
+      expect(statuses.first.nameAr, 'جديد');
+      expect(statuses.first.serviceId, 20);
     });
 
-    test('allows exactly one step forward along the pipeline', () {
-      expect(TaskStatus.newTask.nextInPipeline, TaskStatus.inProgress);
-      expect(TaskStatus.inProgress.nextInPipeline, TaskStatus.readyfortesting);
-      expect(TaskStatus.readyfortesting.nextInPipeline, TaskStatus.testing);
-      expect(TaskStatus.testing.nextInPipeline, TaskStatus.completed);
-      expect(TaskStatus.completed.nextInPipeline, isNull);
+    test('flags the statuses the app treats specially', () {
+      expect(statuses[0].isNew, isTrue);
+      expect(statuses[2].isCompleted, isTrue);
+      expect(statuses[3].isClosed, isTrue);
     });
 
-    test('permits rejection from any non-rejected status', () {
-      for (final status in TaskStatus.values) {
-        if (status.isRejected) continue;
-        expect(
-          status.canTransitionTo(TaskStatus.closed),
-          isTrue,
-          reason: '${status.label} should be rejectable',
-        );
-      }
-    });
-
-    test('blocks skipping ahead and moving backwards', () {
-      expect(TaskStatus.newTask.canTransitionTo(TaskStatus.completed), isFalse);
-      expect(TaskStatus.testing.canTransitionTo(TaskStatus.newTask), isFalse);
+    test('maps known statuses onto theme colours', () {
       expect(
-        TaskStatus.readyfortesting.canTransitionTo(TaskStatus.inProgress),
-        isFalse,
+        statuses.map((s) => s.colorKey),
+        [
+          'new',
+          'in_progress',
+          'done',
+          'rejected',
+          'ready_for_testing',
+          'testing',
+        ],
       );
     });
 
-    test('rejected is terminal', () {
-      expect(TaskStatus.closed.allowedTransitions, isEmpty);
-      expect(TaskStatus.closed.isTerminal, isTrue);
-      expect(TaskStatus.completed.isTerminal, isFalse); // may still be rejected
-    });
-
-    test('exposes all six statuses as tabs', () {
-      expect(TaskStatus.tabOrder.length, 6);
-      expect(TaskStatus.tabOrder.toSet(), TaskStatus.values.toSet());
+    test('compares by id', () {
+      expect(
+        const OrderStatusModel(id: 11, nameEn: 'New'),
+        const OrderStatusModel(id: 11, nameEn: 'renamed'),
+      );
     });
   });
 
-  group('TaskPriority', () {
-    test('parses aliases and defaults to medium', () {
-      expect(TaskPriority.fromApi('critical'), TaskPriority.urgent);
-      expect(TaskPriority.fromApi('minor'), TaskPriority.low);
-      expect(TaskPriority.fromApi('unknown'), TaskPriority.medium);
-      expect(TaskPriority.fromApi(null), TaskPriority.medium);
+  group('TaskModel', () {
+    test('parses a GlobalOrder', () {
+      final task = TaskModel.fromJson({
+        'globalOrderId': 7,
+        'notes': 'Fix login',
+        'orderStatus': {'orderStatusId': 12, 'statusEn': 'On progress'},
+        'business_id': 3,
+        'service_id': 20,
+        'schedule_dt': '2026-09-20T00:00:00',
+        'comments': [
+          {'commentContent': 'hi', 'addedBy': 'sara', 'isRead': false},
+          {'commentContent': 'ok', 'addedBy': 'ali', 'isRead': true},
+        ],
+      });
+
+      expect(task.displayKey, '#7');
+      expect(task.notes, 'Fix login');
+      expect(task.status?.id, 12);
+      expect(task.businessId, 3);
+      expect(task.scheduleDate, DateTime(2026, 9, 20));
+      expect(task.commentsCount, 2);
+      expect(task.unreadCommentsCount, 1);
     });
 
-    test('orders by urgency', () {
-      expect(TaskPriority.urgent.weight, greaterThan(TaskPriority.low.weight));
-      expect(TaskPriority.high.needsAttention, isTrue);
-      expect(TaskPriority.low.needsAttention, isFalse);
+    test('tolerates missing optional fields', () {
+      final task = TaskModel.fromJson({'globalOrderId': 1});
+      expect(task.notes, isEmpty);
+      expect(task.status, isNull);
+      expect(task.createdAt, isNull);
+      expect(task.comments, isEmpty);
+    });
+
+    test('skips malformed tasks instead of failing the list', () {
+      final tasks = TaskModel.listFrom([
+        {'globalOrderId': 1},
+        {'notes': 'no id'},
+        'not a map',
+      ]);
+      expect(tasks.map((t) => t.id), [1]);
     });
   });
 
-  group('Paginated', () {
-    test('reports whether another page exists', () {
-      const first = Paginated<int>(
-        items: [1, 2],
-        page: 1,
-        limit: 2,
-        total: 5,
-        totalPages: 3,
-      );
-      expect(first.hasMore, isTrue);
-      expect(first.nextPage, 2);
+  test('NewTaskData uses the AddGlobalOrder keys', () {
+    final json = const NewTaskData(
+      notes: 'n',
+      businessId: 3,
+      serviceId: 20,
+      statusId: 11,
+      customerId: '9',
+      assigneeId: 'guid',
+    ).toJson();
 
-      const last = Paginated<int>(
-        items: [5],
-        page: 3,
-        limit: 2,
-        total: 5,
-        totalPages: 3,
-      );
-      expect(last.hasMore, isFalse);
-    });
-
-    test('map preserves pagination metadata', () {
-      const page = Paginated<int>(
-        items: [1, 2],
-        page: 2,
-        limit: 2,
-        total: 4,
-        totalPages: 2,
-      );
-
-      final mapped = page.map((value) => value.toString());
-
-      expect(mapped.items, ['1', '2']);
-      expect(mapped.page, 2);
-      expect(mapped.total, 4);
-      expect(mapped.totalPages, 2);
-    });
+    expect(json['Business_id'], 3);
+    expect(json['Service_id'], 20);
+    expect(json['OrderStatusId'], 11);
+    expect(json['GlobalCustomerId'], 9);
+    expect(json['AssigneeId'], 'guid');
+    expect(json['Notes'], 'n');
   });
 }

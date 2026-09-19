@@ -8,9 +8,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:get/get.dart';
 
+import 'package:apx_task_management/core/api_client.dart';
 import 'package:apx_task_management/core/constants.dart';
-import 'package:apx_task_management/core/network.dart';
 import 'package:apx_task_management/core/services.dart';
+import 'package:apx_task_management/core/storage.dart';
 
 // --------------------------------------------------------------------------
 // Notification channels
@@ -257,10 +258,9 @@ void onBackgroundNotificationResponse(NotificationResponse response) {
 /// Everything push related: permissions, channels, FCM wiring, local
 /// notification rendering and tap routing.
 class NotificationService extends GetxService {
-  NotificationService(this._storage, this._session);
+  NotificationService(this._storage);
 
-  final StorageService _storage;
-  final SessionManager _session;
+  final AppStorage _storage;
 
   final FlutterLocalNotificationsPlugin _local =
       FlutterLocalNotificationsPlugin();
@@ -302,9 +302,6 @@ class NotificationService extends GetxService {
     await _requestPermission();
     await _wireListeners();
     await _captureInitialMessage();
-
-    // Clear the device registration when the user signs out.
-    _session.addTeardownHook(deleteToken);
 
     return this;
   }
@@ -481,11 +478,10 @@ class NotificationService extends GetxService {
 
   /// Sends [token] to the backend, skipping the call when nothing changed.
   Future<void> registerToken(String token) async {
-    if (_storage.getString(StorageKeys.fcmToken) == token) return;
-    if (!_session.isAuthenticated.value) return;
+    if (_storage.fcmToken == token) return;
+    if (!_storage.isLoggedIn) return;
     if (!Get.isRegistered<ApiClient>()) return;
-    var userId = _storage.getString(StorageKeys.userId);
-    print(' Registering FCM token for user $userId: $token');
+    final userId = _storage.user?['id']?.toString();
 
     try {
       await Get.find<ApiClient>().post(
@@ -495,7 +491,7 @@ class NotificationService extends GetxService {
           'userId': userId,
         },
       );
-      await _storage.setString(StorageKeys.fcmToken, token);
+      await _storage.saveFcmToken(token);
       AppLogger.i('FCM token registered with backend');
     } catch (e) {
       // Never block the user because a device registration failed.
@@ -503,9 +499,9 @@ class NotificationService extends GetxService {
     }
   }
 
-  /// Drops the device registration (on logout).
+  /// Drops the device registration (on logout). The stored copy of the token
+  /// is removed with the rest of the session.
   Future<void> deleteToken() async {
-    await _storage.remove(StorageKeys.fcmToken);
     try {
       await _messaging?.deleteToken();
     } catch (e) {
@@ -579,13 +575,14 @@ class NotificationService extends GetxService {
   void _routeTo(PushPayload payload) {
     if (!payload.opensTask) return;
 
-    if (!_session.isAuthenticated.value) {
+    if (!_storage.isLoggedIn) {
       _pendingPayload = payload;
       return;
     }
 
     Get.toNamed(
       AppRoutes.taskDetails,
+      arguments: int.tryParse(payload.taskId!),
       // parameters: {
       //   RouteParams.taskId: payload.taskId!,
       //   if (payload.opensComments) RouteParams.openComments: 'true',
@@ -613,7 +610,7 @@ class NotificationService extends GetxService {
 
   /// Reads the per-type toggles saved by the profile screen.
   Future<bool> _isMuted(PushType type) async {
-    final settings = _storage.getJson(StorageKeys.notificationSettings);
+    final settings = _storage.notificationSettings;
     if (settings == null) return false;
 
     if (settings['pushEnabled'] == false) return true;

@@ -55,11 +55,11 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyDimpHdZf9y_b-1r2JjaNmxyp9HqksGQb0',
-    appId: '1:199740475189:ios:71397a924e83a9290eee7c',
+    appId: '1:199740475189:ios:5a40b669e193696b0eee7c',
     messagingSenderId: '199740475189',
     projectId: 'apx-task-management',
     storageBucket: 'apx-task-management.firebasestorage.app',
-    iosBundleId: 'com.example.apxTaskManagement',
+    iosBundleId: 'com.apx.apxtaskmanagement',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
