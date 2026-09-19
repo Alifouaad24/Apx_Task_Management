@@ -106,71 +106,31 @@ class CreateTaskPage extends GetView<TaskFormController> {
         hint: 'Select a business',
         onChanged: controller.selectBusiness,
       ),
+
       SizedBox(height: 16.h),
 
-      const _Label('Customer'),
-      _OptionDropdown(
-        value: controller.selectedCustomer,
-        options: controller.customers,
-        hint: 'Select a customer (optional)',
-        onChanged: controller.selectCustomer,
-      ),
+      // _AssignFields(
+      //   label: 'Assigner',
+      //   side: controller.assigner,
+      //   showTypeSelector: false,
+      // ),
       SizedBox(height: 16.h),
-
-      const _Label('Schedule'),
-      Row(
-        children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              icon: const Icon(Icons.event_outlined),
-              label: Text(
-                controller.scheduleDate == null
-                    ? 'Date'
-                    : DateFormatter.medium(controller.scheduleDate),
-              ),
-              onPressed: () async {
-                final now = DateTime.now();
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: controller.scheduleDate ?? now,
-                  firstDate: DateTime(now.year - 1),
-                  lastDate: DateTime(now.year + 5),
-                );
-                if (picked != null) controller.setScheduleDate(picked);
-              },
-            ),
-          ),
-          SizedBox(width: 8.w),
-          Expanded(
-            child: OutlinedButton.icon(
-              icon: const Icon(Icons.schedule_outlined),
-              label: Text(controller.scheduleTime?.format(context) ?? 'Time'),
-              onPressed: () async {
-                final picked = await showTimePicker(
-                  context: context,
-                  initialTime: controller.scheduleTime ?? TimeOfDay.now(),
-                );
-                if (picked != null) controller.setScheduleTime(picked);
-              },
-            ),
-          ),
-        ],
-      ),
-      SizedBox(height: 16.h),
-
-      _AssignFields(label: 'Assigner', side: controller.assigner),
-      SizedBox(height: 16.h),
-      _AssignFields(label: 'Assignee', side: controller.assignee),
+      _AssignFields(label: 'Assignee', side: controller.assignee, showTypeSelector: false),
     ];
   }
 }
 
 /// Type picker + entity picker for one side of the assignment.
 class _AssignFields extends GetView<TaskFormController> {
-  const _AssignFields({required this.label, required this.side});
+  const _AssignFields({
+    required this.label,
+    required this.side,
+    this.showTypeSelector = true,
+  });
 
   final String label;
   final AssignSelection side;
+  final bool showTypeSelector;
 
   @override
   Widget build(BuildContext context) {
@@ -180,31 +140,37 @@ class _AssignFields extends GetView<TaskFormController> {
         _Label(label),
         Row(
           children: [
-            Expanded(
-              flex: 2,
-              child: DropdownButtonFormField<AssignTypeModel>(
-                // Keyed on the value so a default picked after loading shows.
-                key: ValueKey(side.type?.id),
-                initialValue: side.type,
-                isExpanded: true,
-                decoration: const InputDecoration(border: OutlineInputBorder()),
-                hint: const Text('Type'),
-                items: [
-                  for (final type in controller.assignTypes)
-                    DropdownMenuItem(value: type, child: Text(type.type)),
-                ],
-                onChanged: (type) => controller.selectAssignType(side, type),
+            if (showTypeSelector) ...[
+              Expanded(
+                flex: 2,
+                child: DropdownButtonFormField<AssignTypeModel>(
+                  // Keyed on the value so a default picked after loading shows.
+                  key: ValueKey(side.type?.id),
+                  initialValue: side.type,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                  ),
+                  hint: const Text('Type'),
+                  items: [
+                    for (final type in controller.assignTypes)
+                      DropdownMenuItem(value: type, child: Text(type.type)),
+                  ],
+                  onChanged: (type) => controller.selectAssignType(side, type),
+                ),
               ),
-            ),
-            SizedBox(width: 8.w),
+              SizedBox(width: 8.w),
+            ],
             Expanded(
-              flex: 3,
+              flex: showTypeSelector ? 3 : 5,
               child: side.isLoading
                   ? const LinearProgressIndicator()
                   : _OptionDropdown(
                       value: side.selected,
                       options: side.options,
-                      hint: side.type == null ? 'Pick a type first' : 'Select',
+                      hint: side.type == null
+                          ? 'Pick a type first'
+                          : 'Select',
                       onChanged: side.type == null
                           ? null
                           : (option) =>
