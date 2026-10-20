@@ -79,6 +79,9 @@ class TaskModel {
     this.customerName,
     this.assignerName,
     this.assigneeName,
+    this.deadLine,
+    this.startTaskProgressdDate,
+    this.endTaskDate
   });
 
   final int id;
@@ -93,6 +96,9 @@ class TaskModel {
   final String? customerName;
   final String? assignerName;
   final String? assigneeName;
+  final String? deadLine;
+  final String? endTaskDate;
+  final String? startTaskProgressdDate;
 
   String get displayKey => '#$id';
   int get commentsCount => comments.length;
@@ -120,6 +126,9 @@ class TaskModel {
       ),
       assignerName: _nonEmpty(_first(json, const ['assignerName', 'assigner'])),
       assigneeName: _nonEmpty(_first(json, const ['assigneeName', 'assignee'])),
+      deadLine: json['deadLine']?.toString() ?? '',
+      endTaskDate: json['endTaskDate']?.toString() ?? '',
+      startTaskProgressdDate: json['startTaskProgressdDate']?.toString() ?? '',
     );
   }
 
@@ -233,6 +242,7 @@ class NewTaskData {
     this.assignerId,
     this.assigneeTypeId,
     this.assigneeId,
+    this.deadLine
   });
 
   final String notes;
@@ -243,7 +253,7 @@ class NewTaskData {
 
   /// `yyyy-MM-dd`.
   final String? scheduleDate;
-
+final String? deadLine;
   /// `HH:mm`.
   final String? scheduleTime;
   final int? assignerTypeId;
@@ -263,6 +273,7 @@ class NewTaskData {
     'AssignerId': assignerId,
     'AssigneeTypeId': assigneeTypeId,
     'AssigneeId': assigneeId,
+    'deadLine': deadLine
   };
 }
 

@@ -41,7 +41,7 @@ class TaskFormController extends GetxController {
   final GetBusinessesUseCase _getBusinesses;
   final GetCustomersUseCase _getCustomers;
   final GetCurrentUserUseCase _getCurrentUser;
-
+  DateTime? deadLine;
   final TaskModel? editingTask;
   bool get isEditing => editingTask != null;
 
@@ -263,6 +263,9 @@ class TaskFormController extends GetxController {
         assignerId: assigner.selected?.id,
         assigneeTypeId: assignee.type?.id,
         assigneeId: assignee.selected?.id,
+        deadLine: deadLine == null
+            ? null
+            : DateFormat('yyyy-MM-dd').format(deadLine!),
       ),
     );
 

@@ -162,6 +162,10 @@ class TaskCard extends StatelessWidget {
                             decorationColor: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
+
+                        SizedBox(height: 10.h),
+                        _TaskDates(task: task),
+                        SizedBox(height: 4.h),
                         // SizedBox(height: 12.h),
                         // _MetaRow(task: task),
                         SizedBox(height: 10.h),
@@ -274,6 +278,88 @@ class _FooterRow extends StatelessWidget {
           SizedBox(width: 4.w),
           Text(DateFormatter.short(task.scheduleDate), style: muted),
         ],
+      ],
+    );
+  }
+}
+
+class _TaskDates extends StatelessWidget {
+  const _TaskDates({required this.task});
+
+  final TaskModel task;
+
+  DateTime? _parseDate(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    return DateTime.tryParse(value);
+  }
+
+  String _formatDate(DateTime date) {
+    final year = date.year.toString().padLeft(4, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
+  }
+
+  int? _activeDuration(DateTime? start, DateTime? end) {
+    if (start == null) return null;
+
+    final startDay = DateTime(start.year, start.month, start.day);
+    final endDate = end ?? DateTime.now();
+    final endDay = DateTime(endDate.year, endDate.month, endDate.day);
+
+    return endDay.difference(startDay).inDays.clamp(0, 999999);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final start = _parseDate(task.startTaskProgressdDate);
+    final deadline = _parseDate(task.deadLine);
+    final end = _parseDate(task.endTaskDate);
+    final duration = _activeDuration(start, end);
+
+    final labelStyle = AppTextStyles.labelSmall.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+
+    Widget dateItem(String label, String value, IconData icon) {
+      return Padding(
+        padding: EdgeInsets.only(bottom: 8.h),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 15.sp, color: theme.colorScheme.onSurfaceVariant),
+            SizedBox(width: 6.w),
+            Text('$label: ', style: labelStyle),
+            Expanded(
+              child: Text(
+                value,
+                style: AppTextStyles.labelSmall.copyWith(
+                  color: theme.colorScheme.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (start == null && deadline == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (start != null)
+          dateItem('Start Date', _formatDate(start), Icons.play_circle_outline),
+
+        if (deadline != null)
+          dateItem('Deadline', _formatDate(deadline), Icons.event_outlined),
+
+        if (duration != null)
+          dateItem('Active Duration', '$duration days', Icons.timelapse),
       ],
     );
   }

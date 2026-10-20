@@ -6,6 +6,7 @@ import 'package:apx_task_management/core/theme.dart';
 import 'package:apx_task_management/core/utils.dart';
 import 'package:apx_task_management/features/tasks/controllers/task_form_controller.dart';
 import 'package:apx_task_management/features/tasks/models/task_model.dart';
+import 'package:intl/intl.dart';
 
 /// Create a task, or edit one's notes and status (see [TaskFormController]).
 class CreateTaskPage extends GetView<TaskFormController> {
@@ -108,14 +109,72 @@ class CreateTaskPage extends GetView<TaskFormController> {
       ),
 
       SizedBox(height: 16.h),
+      const _Label('Dead Line'),
 
+      InkWell(
+        onTap: () async {
+          final DateTime? picked = await showDatePicker(
+            context: context,
+            initialDate: controller.deadLine ?? DateTime.now(),
+            firstDate: DateTime.now(),
+            lastDate: DateTime(2100),
+            helpText: 'Select Deadline',
+          );
+
+          if (picked != null) {
+            controller.deadLine = picked;
+            controller.update();
+          }
+        },
+        child: Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 14.h),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade400),
+            borderRadius: BorderRadius.circular(8.r),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.calendar_month, color: Colors.grey.shade600),
+              SizedBox(width: 10.w),
+              Expanded(
+                child: Text(
+                  controller.deadLine != null
+                      ? DateFormat('yyyy-MM-dd').format(controller.deadLine!)
+                      : 'Select deadline',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    color: controller.deadLine != null
+                        ? Colors.black
+                        : Colors.grey.shade600,
+                  ),
+                ),
+              ),
+              if (controller.deadLine != null)
+                GestureDetector(
+                  onTap: () {
+                    controller.deadLine = null;
+                    controller.update();
+                  },
+                  child: const Icon(Icons.close, size: 18),
+                ),
+            ],
+          ),
+        ),
+      ),
+
+      SizedBox(height: 16.h),
       // _AssignFields(
       //   label: 'Assigner',
       //   side: controller.assigner,
       //   showTypeSelector: false,
       // ),
       SizedBox(height: 16.h),
-      _AssignFields(label: 'Assignee', side: controller.assignee, showTypeSelector: false),
+      _AssignFields(
+        label: 'Assignee',
+        side: controller.assignee,
+        showTypeSelector: false,
+      ),
     ];
   }
 }
@@ -168,9 +227,7 @@ class _AssignFields extends GetView<TaskFormController> {
                   : _OptionDropdown(
                       value: side.selected,
                       options: side.options,
-                      hint: side.type == null
-                          ? 'Pick a type first'
-                          : 'Select',
+                      hint: side.type == null ? 'Pick a type first' : 'Select',
                       onChanged: side.type == null
                           ? null
                           : (option) =>
