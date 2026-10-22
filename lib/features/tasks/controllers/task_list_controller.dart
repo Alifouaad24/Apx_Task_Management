@@ -9,6 +9,17 @@ import 'package:apx_task_management/features/auth/usecases/auth_usecases.dart';
 import 'package:apx_task_management/features/tasks/models/task_model.dart';
 import 'package:apx_task_management/features/tasks/usecases/task_usecases.dart';
 
+/// Which slice of the board the dashboard shows.
+enum TaskFilter {
+  all('All tasks'),
+  mine('My tasks'),
+  today('Today tasks');
+
+  const TaskFilter(this.label);
+
+  final String label;
+}
+
 /// The task board: the service's statuses and every task in it.
 ///
 /// One instance for the whole dashboard. The API returns all tasks in one
@@ -58,6 +69,7 @@ class TaskListController extends GetxController {
   bool isLoading = false;
   Failure? failure;
   String _query = '';
+  TaskFilter filter = TaskFilter.all;
 
   /// Set once the scope resolves; the create form needs it too.
   TaskScope? scope;
@@ -139,17 +151,49 @@ class TaskListController extends GetxController {
     await reload();
   }
 
-  /// Tasks in [status] matching the current search.
+  /// Tasks in [status] matching the current filter and search.
   List<TaskModel> tasksFor(OrderStatusModel status) => _tasks
-      .where((task) => task.status?.id == status.id && _matches(task))
+      .where(
+        (task) =>
+            task.status?.id == status.id &&
+            _passesFilter(task, filter) &&
+            _matches(task),
+      )
       .toList();
 
+  /// How many tasks [status]'s tab shows; drives the tab bar badges.
+  int countFor(OrderStatusModel status) => tasksFor(status).length;
+
+  /// How many tasks across every status [filter] would show; drives the
+  /// filter tiles.
+  int countMatching(TaskFilter filter) =>
+      _tasks.where((t) => _passesFilter(t, filter) && _matches(t)).length;
+
   TaskModel? taskById(int id) => _tasks.firstWhereOrNull((t) => t.id == id);
+
+  void applyFilter(TaskFilter filter) {
+    if (filter == this.filter) return;
+    this.filter = filter;
+    update();
+  }
 
   /// Filters locally by notes, customer or `#id`.
   void applySearch(String query) {
     _query = query.trim().toLowerCase();
     update();
+  }
+
+  bool _passesFilter(TaskModel task, TaskFilter filter) => switch (filter) {
+    TaskFilter.all => true,
+    TaskFilter.mine => _isAssignedToMe(task),
+    TaskFilter.today => task.hasUnreadComments,
+  };
+
+  /// Tasks only carry the assignee's name, so that is what we compare.
+  bool _isAssignedToMe(TaskModel task) {
+    final me = _getCurrentUser()?.name.trim().toLowerCase();
+    final assignee = task.assigneeName?.trim().toLowerCase();
+    return me != null && me.isNotEmpty && assignee == me;
   }
 
   bool _matches(TaskModel task) {
