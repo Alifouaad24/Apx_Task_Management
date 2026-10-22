@@ -413,7 +413,10 @@ class _FilterTile extends StatelessWidget {
                   Text(
                     '$count',
                     style: AppTextStyles.titleLarge.copyWith(
-                      color: foreground,
+                      // Unread comments from others stand out, chat style.
+                      color: filter == TaskFilter.today && count > 0
+                          ? Colors.red
+                          : foreground,
                       fontWeight: FontWeight.w800,
                       height: 1,
                     ),

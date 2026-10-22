@@ -10,6 +10,7 @@ class UserModel {
   const UserModel({
     required this.id,
     required this.name,
+    this.userName = '',
     this.email = '',
     this.avatarUrl,
     this.jobTitle,
@@ -20,6 +21,9 @@ class UserModel {
 
   final String id;
   final String name;
+
+  /// The login handle; comments' `addedBy` holds this.
+  final String userName;
   final String email;
   final String? avatarUrl;
 
@@ -45,6 +49,8 @@ class UserModel {
     id: json['id']?.toString() ?? '',
     name: (json['name'] ?? json['fullName'] ?? json['displayName'] ?? '')
         .toString(),
+    userName: (json['userName'] ?? json['UserName'] ?? json['username'] ?? '')
+        .toString(),
     email: json['email']?.toString() ?? '',
     avatarUrl: _nonEmpty(
       json['avatarUrl'] ?? json['avatar'] ?? json['photoUrl'],
@@ -65,6 +71,7 @@ class UserModel {
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
+    'userName': userName,
     'email': email,
     'avatarUrl': avatarUrl,
     'jobTitle': jobTitle,

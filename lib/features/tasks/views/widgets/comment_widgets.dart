@@ -103,7 +103,9 @@ class CommentBubble extends StatelessWidget {
                     child: Text(
                       comment.content,
                       style: AppTextStyles.bodyMedium.copyWith(
-                        color: scheme.onSurface,
+                        color: (!comment.isRead && !isMine)
+                            ? Colors.red
+                            : scheme.onSurface,
                       ),
                     ),
                   ),
@@ -361,6 +363,7 @@ class CommentsTimeline extends StatelessWidget {
     BuildContext context,
     List<CommentModel> comments,
   ) {
+    final board = Get.find<TaskListController>();
     final widgets = <Widget>[];
     String? currentDay;
 
@@ -382,7 +385,7 @@ class CommentsTimeline extends StatelessWidget {
         CommentBubble(
           comment: comment,
           isLastInGroup: isLastInGroup,
-          isMine: true,
+          isMine: board.isMyComment(comment),
         ),
       );
     }

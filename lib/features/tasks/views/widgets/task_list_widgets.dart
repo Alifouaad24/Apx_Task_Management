@@ -200,6 +200,7 @@ class _TopRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final unread = Get.find<TaskListController>().unreadFromOthersCount(task);
 
     return Row(
       children: [
@@ -227,7 +228,7 @@ class _TopRow extends StatelessWidget {
           ),
         ),
         const Spacer(),
-        if (task.hasUnreadComments)
+        if (unread > 0)
           Container(
             padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
             decoration: BoxDecoration(
@@ -244,7 +245,7 @@ class _TopRow extends StatelessWidget {
                 ),
                 SizedBox(width: 4.w),
                 Text(
-                  '${task.unreadCommentsCount} new',
+                  '$unread new',
                   style: AppTextStyles.labelSmall.copyWith(
                     color: scheme.primary,
                     fontWeight: FontWeight.w700,

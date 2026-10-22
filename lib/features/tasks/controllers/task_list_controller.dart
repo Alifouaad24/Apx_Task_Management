@@ -186,8 +186,32 @@ class TaskListController extends GetxController {
   bool _passesFilter(TaskModel task, TaskFilter filter) => switch (filter) {
     TaskFilter.all => true,
     TaskFilter.mine => _isAssignedToMe(task),
-    TaskFilter.today => task.hasUnreadComments,
+    TaskFilter.today => hasUnreadFromOthers(task),
   };
+
+  /// A comment is mine when it was added by the session's user.
+  bool isMyComment(CommentModel comment) {
+    final me = _myCommentAuthor;
+    return me.isNotEmpty && comment.addedBy == me;
+  }
+
+  /// What the server puts in `addedBy` for the session's user: the user name,
+  /// or the display name for sessions stored before it was saved.
+  String get _myCommentAuthor {
+    final user = _getCurrentUser();
+    if (user == null) return '';
+    return user.userName.isNotEmpty ? user.userName : user.name;
+  }
+
+  /// Whether [comment] should be highlighted: unread and written by someone
+  /// else. Your own comments never count as unread, like in a chat.
+  bool isUnreadFromOthers(CommentModel comment) =>
+      !comment.isRead && !isMyComment(comment);
+
+  int unreadFromOthersCount(TaskModel task) =>
+      task.comments.where(isUnreadFromOthers).length;
+
+  bool hasUnreadFromOthers(TaskModel task) => unreadFromOthersCount(task) > 0;
 
   /// Tasks only carry the assignee's name, so that is what we compare.
   bool _isAssignedToMe(TaskModel task) {
@@ -275,7 +299,7 @@ class TaskListController extends GetxController {
               CommentModel(
                 id: DateTime.now().millisecondsSinceEpoch,
                 content: text,
-                addedBy: _getCurrentUser()?.name ?? '',
+                addedBy: _myCommentAuthor,
                 addedOn: DateTime.now(),
                 isRead: true,
               ),
@@ -295,6 +319,8 @@ class TaskListController extends GetxController {
     final task = taskById(taskId);
     if (task == null || !task.hasUnreadComments) return;
 
+    if (!hasUnreadFromOthers(task)) return;
+
     final result = await _markCommentsRead(taskId);
     result.fold(
       (error) => AppLogger.w('Marking comments read failed: $error'),
@@ -307,7 +333,7 @@ class TaskListController extends GetxController {
                 content: c.content,
                 addedBy: c.addedBy,
                 addedOn: c.addedOn,
-                isRead: true,
+                isRead: c.isRead,
               ),
           ],
         ),
